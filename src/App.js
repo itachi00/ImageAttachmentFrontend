@@ -1,82 +1,88 @@
-import React, { useState } from 'react';
-import './App.css';
+import React, { useState, useEffect } from 'react';
+import { TextField, Button, Grid, Card, CardMedia, CircularProgress, Container } from '@mui/material';
 
 function App() {
-  const [waId, setWaId] = useState('');
-  const [images, setImages] = useState([]);
-  const [error, setError] = useState('');
-  const [selectedImage, setSelectedImage] = useState(null);
+    const [whatsappNumber, setWhatsappNumber] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [images, setImages] = useState([]);
 
-  // Function to fetch images from the backend
-  const fetchImages = async () => {
-    setError('');  // Reset any previous errors
-    try {
-      const response = await fetch(`/whatsapp/images/${waId}`);
-      if (response.ok) {
-        const data = await response.json();
-        setImages(data.urls);  // Set the images to be displayed
-      } else {
-        setError('No media found for this WaId');
-        setImages([]);  // Clear the images
-      }
-    } catch (err) {
-      setError('Error fetching images');
-      console.error('Error:', err);
-    }
-  };
+    // Send notification to WhatsApp number
+    const sendNotification = async () => {
+        setLoading(true);
+        try {
+            const response = await fetch('/send-notification', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ whatsappNumber })
+            });
+            if (response.ok) {
+                alert('Notification sent. Please upload an image within 15 minutes.');
+            } else {
+                alert('Failed to send notification.');
+            }
+        } catch (error) {
+            console.error('Error sending notification:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
-  // Function to open the modal with the clicked image
-  const handleImageClick = (imageUrl) => {
-    setSelectedImage(imageUrl);
-  };
+    // Fetch recent 5 images uploaded by the WhatsApp ID
+    const fetchImages = async () => {
+        try {
+            const response = await fetch(`/whatsapp/images/${whatsappNumber}`);
+            const data = await response.json();
+            setImages(data.urls || []);
+        } catch (error) {
+            console.error('Error fetching images:', error);
+        }
+    };
 
-  // Function to close the modal
-  const closeModal = () => {
-    setSelectedImage(null);
-  };
-
-  return (
-    <div className="App">
-      <h1>WhatsApp Image Viewer</h1>
-
-      {/* Input for WaId */}
-      <input 
-        type="text" 
-        value={waId}
-        onChange={(e) => setWaId(e.target.value)}
-        placeholder="Enter WhatsApp ID (WaId)" 
-      />
-      <button onClick={fetchImages}>Fetch Images</button>
-
-      {/* Display Error if any */}
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-
-      {/* Render the images */}
-      <div className="image-gallery">
-        {images.length > 0 ? (
-          images.map((url, index) => (
-            <img 
-              key={index} 
-              src={url} 
-              alt={`Media ${index}`} 
-              className="media-image" 
-              onClick={() => handleImageClick(url)}
+    return (
+        <Container>
+            <h1>WhatsApp Image Upload</h1>
+            <TextField
+                label="WhatsApp Number"
+                variant="outlined"
+                fullWidth
+                value={whatsappNumber}
+                onChange={(e) => setWhatsappNumber(e.target.value)}
+                style={{ marginBottom: '20px' }}
             />
-          ))
-        ) : (
-          <p>No images to display</p>
-        )}
-      </div>
+            <Button
+                variant="contained"
+                color="primary"
+                onClick={sendNotification}
+                disabled={loading}
+            >
+                {loading ? <CircularProgress size={24} /> : 'Send Notification'}
+            </Button>
 
-      {/* Modal for image expansion */}
-      {selectedImage && (
-        <div className="modal" onClick={closeModal}>
-          <span className="close">&times;</span>
-          <img className="modal-content" src={selectedImage} alt="Selected" />
-        </div>
-      )}
-    </div>
-  );
+            <Button
+                variant="contained"
+                color="secondary"
+                onClick={fetchImages}
+                style={{ marginLeft: '20px' }}
+            >
+                Fetch Uploaded Images
+            </Button>
+
+            <Grid container spacing={3} style={{ marginTop: '20px' }}>
+                {images.map((url, index) => (
+                    <Grid item xs={12} sm={6} md={4} key={index}>
+                        <Card>
+                            <CardMedia
+                                component="img"
+                                height="200"
+                                image={url}
+                                alt={`Image ${index + 1}`}
+                            />
+                        </Card>
+                    </Grid>
+                ))}
+            </Grid>
+        </Container>
+    );
 }
 
 export default App;
